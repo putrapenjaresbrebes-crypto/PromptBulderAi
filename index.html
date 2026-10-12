@@ -187,13 +187,34 @@
                 </div>
 
                 <!-- SECTION: TIMELINE KOREOGRAFI -->
-                <div class="space-y-4">
+                <div class="space-y-4 border border-yellow-500/30 rounded-xl p-4 bg-zinc-900/50">
                     <h2 class="text-base font-bold text-yellow-400 flex items-center gap-2">
-                        <span>⏳</span> Timeline Koreografi & Alur Aksi
+                        <span>⏳</span> Timeline / Koreo AI Saran
                     </h2>
                     <div>
-                        <textarea id="choreography-timeline" rows="5" class="w-full bg-black border border-zinc-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-yellow-400 font-mono" placeholder="Tulis alur per detik. Cth:
-00.00-00.05: Lawan menerjang, side-step sangat cepat, front kick ke dada, langsung roundhouse kick."></textarea>
+                        <label class="block text-xs font-medium text-zinc-300 mb-1">Kata Kunci Teknik / Gaya Bertarung</label>
+                        <select id="choreo-keyword" class="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-yellow-400">
+                            <option value="Kungfu Hong Kong klasik: kombinasi pukulan beruntun, tangkisan melingkar, sapuan, tendangan samping; ritme cepat dan stunt realistis">Kungfu Hong Kong klasik (cepat, kombinasi rapat)</option>
+                            <option value="Silat Indonesia: kuda-kuda rendah, langkah serong, elakan badan, tangkisan luar-dalam, sapuan kaki dan serangan balasan jarak dekat">Pencak Silat Indonesia</option>
+                            <option value="Muay Thai: teep, roundhouse kick dengan putaran pinggul, serangan siku dan lutut dalam jarak dekat, guard rapat">Muay Thai (siku, lutut, tendangan)</option>
+                            <option value="Taekwondo: side kick, turning kick, spinning back kick yang terkontrol, footwork dinamis dan pendaratan seimbang">Taekwondo (tendangan dinamis)</option>
+                            <option value="Jeet Kune Do: interception saat lawan mulai menyerang, straight lead punch, stop-kick ke paha, trapping singkat lalu keluar dari garis serang">Jeet Kune Do (intercept dan serangan langsung)</option>
+                            <option value="Kickboxing modern: jab-cross, hook, low kick, check tendangan, counterpunch dan perpindahan sudut">Kickboxing (kombinasi pukulan-tendangan)</option>
+                            <option value="Koreo ropokan satu lawan satu: pertukaran serangan jarak dekat, tangkisan keras, pukulan badan, dorongan bahu, clinch singkat, bantingan atau jatuhan yang realistis lalu bangkit menjaga keseimbangan">Ropokan / perkelahian jarak dekat</option>
+                            <option value="MMA sinematik: feint, jab-cross, low kick, level change, clinch, takedown terkendali dan scramble realistis">MMA sinematik</option>
+                            <option value="Campuran kungfu, silat, Muay Thai, taekwondo dan Jeet Kune Do; setiap teknik harus terlihat berbeda, transisi logis, cepat namun terbaca kamera">Campuran kungfu + silat + Muay Thai + taekwondo + Jeet Kune Do</option>
+                            <option value="Latihan solo bela diri: rangkaian pukulan, tangkisan, elakan, tendangan, putaran badan dan kuda-kuda terhadap target imajiner; tidak ada lawan atau objek baru">Latihan solo / shadow fighting</option>
+                        </select>
+                        <p class="text-[11px] text-zinc-500 mt-1">Pilihan ini akan dipakai AI untuk merancang gerakan yang spesifik, bukan sekadar menyebut nama gaya.</p>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <button type="button" id="btn-ai-choreo" onclick="suggestChoreography()" class="flex-1 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-black font-bold py-2.5 px-4 rounded-lg text-sm transition">✨ AI Saran Timeline / Koreo</button>
+                        <button type="button" onclick="document.getElementById('choreography-timeline').value='';" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white py-2.5 px-4 rounded-lg text-sm">Kosongkan Timeline</button>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-300 mb-1">Timeline Aksi (bisa diedit manual)</label>
+                        <textarea id="choreography-timeline" rows="7" class="w-full bg-black border border-zinc-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-yellow-400 font-mono" placeholder="Klik AI Saran Timeline / Koreo untuk membuat urutan aksi per detik, atau tulis sendiri.
+Contoh: 00.00–00.03: ..."></textarea>
                     </div>
                 </div>
 
@@ -443,6 +464,77 @@
             }
         }
 
+        async function suggestChoreography() {
+            const apiKey = document.getElementById('api-key').value.trim();
+            if (!apiKey) {
+                showModal("Masukkan Gemini API Key terlebih dahulu, kawan.", "warning");
+                return;
+            }
+            const duration = document.getElementById('param-duration').value;
+            const style = document.getElementById('param-style').value;
+            const keyword = document.getElementById('choreo-keyword').value;
+            const charName = document.getElementById('char1-name').value.trim() || 'Karakter utama';
+            const charMeta = document.getElementById('char1-meta').value.trim();
+            const charCostume = document.getElementById('char1-costume').value.trim();
+            const enemyFile = document.getElementById('enemy-img').files[0];
+            const groupFile = document.getElementById('group-img').files[0];
+            const enemyName = document.getElementById('enemy-name').value.trim() || 'Musuh pada Image 2';
+            const groupName = document.getElementById('group-name').value.trim() || 'Kelompok pada Image 3';
+            const locationDesc = document.getElementById('location-desc').value.trim();
+            if (currentMenu === 'fighter' && enemyFile && groupFile) {
+                showModal("Pilih Image 2 atau Image 3 saja, jangan keduanya.", "warning"); return;
+            }
+            const mode = currentMenu !== 'fighter' ? 'Adegan custom' : enemyFile ? `Duel melawan satu musuh: ${enemyName}` : groupFile ? `Melawan kelompok: ${groupName}` : 'Latihan solo tanpa lawan atau karakter tambahan';
+            const seconds = /15/.test(duration) ? 15 : 10;
+            const prompt = `Bertindak sebagai sutradara laga dan koreografer stunt profesional. Buat TIMELINE KOREOGRAFI VIDEO ${seconds} DETIK dalam bahasa Indonesia.
+Mode adegan: ${mode}.
+Karakter utama: ${charName}${charMeta ? ', '+charMeta : ''}. Kostum: ${charCostume || 'ikuti referensi gambar'}.
+Lokasi: ${locationDesc || 'ikuti Image 4'}.
+Gaya sinematik: ${style}.
+KATA KUNCI TEKNIK YANG WAJIB DITERJEMAHKAN MENJADI GERAKAN NYATA: ${keyword}.
+
+ATURAN WAJIB:
+1. Bagi durasi menjadi interval waktu yang menutupi seluruh durasi (misalnya 00.00-00.02, 00.02-00.04, dst). Jangan ada waktu kosong.
+2. Pada setiap interval, tulis aksi konkret: posisi kaki/kuda-kuda, arah langkah, bagian tubuh yang bergerak, teknik spesifik, sasaran atau titik kontak yang masuk akal, reaksi lawan, pemulihan keseimbangan, serta posisi akhir.
+3. Jika duel, hanya satu karakter utama dan satu musuh dari Image 2. Jelaskan aksi dan reaksi bergantian; jangan membuat lawan diam seperti boneka. Jika melawan kelompok, gunakan hanya jumlah/susunan yang tampak pada Image 3. Jika solo, tidak boleh ada orang atau target fisik baru.
+4. Kata kunci gaya harus tampak dalam teknik yang benar-benar berbeda; jangan hanya mengulang nama gaya atau menulis 'bertarung cepat'. Hindari kombo yang mustahil, gerak melayang, kontak tanpa sebab, serangan menembus tubuh, dan gerakan berulang tanpa variasi.
+5. Aksi sinematik cepat tetapi terbaca kamera, anatomi dan momentum realistis, tanpa darah/gore. Akhiri dengan pose stabil yang dapat menjadi awal scene berikutnya.
+6. Jangan tulis pengantar, kesimpulan, atau format JSON. Keluarkan hanya timeline berlabel waktu. Pastikan semua interval sesuai total durasi ${seconds} detik.`;
+            const btn = document.getElementById('btn-ai-choreo');
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black mr-2"></span>AI sedang menyusun koreo...';
+            try {
+                const modelCandidates = ['gemini-3.8-flash', 'gemini-3.5-flash-lite'];
+                let output = '', lastError = '';
+                for (let i = 0; i < modelCandidates.length; i++) {
+                    const model = modelCandidates[i];
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, maxOutputTokens: 1800 } })
+                    });
+                    const raw = await response.text();
+                    let data; try { data = JSON.parse(raw); } catch (_) { throw new Error(`Respons API tidak valid (HTTP ${response.status}).`); }
+                    if (response.ok) {
+                        output = data?.candidates?.[0]?.content?.parts?.map(x => x.text || '').join('').trim();
+                        if (!output) throw new Error('AI tidak mengembalikan timeline. Coba lagi.');
+                        break;
+                    }
+                    lastError = `${data?.error?.status || response.status}: ${data?.error?.message || 'Permintaan gagal'}`;
+                    const temporary = response.status === 503 || response.status === 429 || /UNAVAILABLE|high demand|overloaded|temporar/i.test(lastError);
+                    if (!temporary || i === modelCandidates.length - 1) throw new Error(lastError);
+                }
+                if (!output) throw new Error(lastError || 'Model Gemini belum tersedia.');
+                document.getElementById('choreography-timeline').value = output;
+                showModal('Timeline koreografi berhasil dibuat. Periksa dan edit jika perlu, lalu klik Generate Master Prompt & JSON.', 'success');
+            } catch (err) {
+                console.error('AI choreography error:', err);
+                showModal(`Gagal membuat saran koreografi. ${err.message || err}`, 'error');
+            } finally {
+                btn.disabled = false; btn.innerHTML = original;
+            }
+        }
+
         function generatePrompt() {
             const char1Name = document.getElementById('char1-name').value.trim();
             const char1Meta = document.getElementById('char1-meta').value.trim();
@@ -470,6 +562,7 @@
             const style = document.getElementById('param-style').value;
             const atmosphere = document.getElementById('param-atmosphere').value;
             const timeline = document.getElementById('choreography-timeline').value.trim();
+            const choreographyKeyword = document.getElementById('choreo-keyword')?.value || 'Gerakan bela diri realistis dan berkesinambungan';
 
             if (currentMenu === 'fighter' && enemyFile && groupFile) {
                 showModal("Image 2 dan Image 3 tidak boleh digunakan bersamaan. Pilih salah satu saja.", "warning");
@@ -504,6 +597,7 @@
             textPrompt += `- Style: ${style}\n`;
             textPrompt += `- Suasana: ${atmosphere}\n`;
             textPrompt += `- Gaya visual: live-action fotorealistis, terlihat seperti film laga nyata dengan aktor sungguhan; bukan animasi, bukan anime, bukan CGI/game 3D.\n`;
+            textPrompt += `- Kata kunci koreografi terpilih (WAJIB diterapkan sebagai gerakan konkret): ${choreographyKeyword}\n`;
             textPrompt += `- Aturan gerak: gerakan berkesinambungan tanpa jeda yang tidak perlu, anatomi dan fisika realistis, momentum masuk akal, pijakan kaki jelas, hindari gerakan kaku atau melayang.\n\n`;
 
             if (timeline) {
@@ -546,6 +640,7 @@
                     atmosphere: atmosphere,
                     visual_target: 'photorealistic live-action film, real human actors, not animation or game-like 3D'
                 },
+                choreography_keyword: choreographyKeyword,
                 choreography_timeline: timeline || (currentMenu === 'fighter' ? 'Generate a clear continuous choreography appropriate to solo, duel, or group mode.' : 'Follow the custom scene brief.'),
                 strict_rules: [
                     'Image 1 is the primary character reference',
@@ -553,6 +648,7 @@
                     'If Image 2 and Image 3 are both empty, generate solo training with no opponents',
                     'Image 4 is the required location reference',
                     'Photorealistic live-action, not anime, not game-like 3D',
+                    'Apply selected choreography keyword as concrete, timed body mechanics and techniques',
                     'No teleportation; preserve identity, costume, character count, location, and momentum'
                 ]
             };
